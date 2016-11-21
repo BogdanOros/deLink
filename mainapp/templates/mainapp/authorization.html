@@ -1,0 +1,23 @@
+{% extends 'mainapp/base.html' %}
+{% block content %}
+
+<div class="col-md-12">
+    <div class="col-md-4"></div>
+
+    <div class="col-md-4 col-md-12">
+        <h3 class="center">Authorization</h3>
+        <form action="{% url 'mainapp:authorization' %}" method="post">{% csrf_token %}
+            <h4>E-mail:</h4>
+            <input type="email" class="form-control" name="mail" required>
+
+            <h4>Password:</h4>
+            <input type="password" class="form-control" name="password" required>
+
+            <button type="submit" style="float: right; margin-top: 3%" class="btn btn-success">Next</button>
+        </form>
+    </div>
+
+    <div class="col-md-4"></div>
+</div>
+
+{% endblock %}

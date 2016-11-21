@@ -1,0 +1,16 @@
+/*div{*/
+    /*border: 1px solid black;*/
+/*}*/
+
+a{
+    text-align: center;
+}
+
+a:hover{
+    text-decoration: none;
+    cursor: pointer;
+}
+
+.center{
+    text-align: center;
+}

@@ -1,0 +1,25 @@
+{% extends 'mainapp/base.html' %}
+{% block content %}
+<div class="col-md-12">
+    <div class="col-md-4">
+        {% if logged_user %}
+            <h4>Email - {{ logged_user.email }}</h4>
+            <h4>Name - {{ logged_user.name }}</h4>
+            <h4>Surname - {{ logged_user.surname }}</h4>
+        {% endif %}
+    </div>
+    <div class="col-md-4 col-md-12">
+        <div class="col-md-6">
+            <a href="{% url 'mainapp:registration' %}"><h3>Sign up</h3></a>
+        </div>
+        <div class="col-md-6">
+            <a href="{% url 'mainapp:authorization' %}"><h3>Sign in</h3></a>
+        </div>
+
+    </div>
+    <div class="col-md-4">
+
+    </div>
+</div>
+
+{% endblock %}
