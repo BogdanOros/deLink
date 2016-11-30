@@ -105,7 +105,7 @@ REST_FRAMEWORK = {
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.mysql',
-        'NAME': 'usersdb',
+        'NAME': 'delink_users_db',
         'USER': 'root',
         'PASSWORD': '1111',
         'HOST': 'localhost',
@@ -113,6 +113,8 @@ DATABASES = {
     }
 }
 
+AUTH_USER_MODEL = 'mainapp.CustomUser'
+AUTHENTICATION_BACKENDS = ('mainapp.backends.CustomUserAuth',)
 
 # Password validation
 # https://docs.djangoproject.com/en/1.10/ref/settings/#auth-password-validators
