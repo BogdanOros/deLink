@@ -4,17 +4,18 @@ from django.contrib.auth.backends import ModelBackend
 
 class CustomUserAuth(object):
 
-	# @staticmethod
-	def authenticate(self, username=None, password=None):
+	@staticmethod
+	def authenticate(username=None, password=None):
 		try:
 			user = CustomUser.objects.get(email=username)
-			print (username, password)
+			# print (username, password)
 			if user.check_password(password):
 				return user
 		except CustomUser.DoesNotExist:
 			return None
 
-	def get_user(self, user_id):
+	@staticmethod
+	def get_user(user_id):
 		try:
 			user = CustomUser.objects.get(pk=user_id)
 			if user.is_active:

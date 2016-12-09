@@ -1,5 +1,5 @@
 from __future__ import unicode_literals
-from django.contrib.auth.models import AbstractBaseUser, BaseUserManager, PermissionsMixin
+from django.contrib.auth.models import AbstractBaseUser, BaseUserManager, PermissionsMixin, AbstractUser
 from django.db import models
 from datetime import datetime
 from django.utils.timezone import now
@@ -17,7 +17,7 @@ class Friendship(models.Model):
 
 
 class CustomUserManager(BaseUserManager):
-	def _create_user(self, email, password, is_staff, is_superuser, **extra_fields):
+	def _create_user(self, email, password, is_superuser, **extra_fields):
 		"""
 		Creates and saves a User with the given email and password.
 		"""
@@ -26,7 +26,7 @@ class CustomUserManager(BaseUserManager):
 			raise ValueError('The given email must be set')
 
 		email = self.normalize_email(email)
-		user = self.model(email=email, is_active=True, is_staff=is_staff,
+		user = self.model(email=email, is_active=True,
 		                  is_superuser=is_superuser, last_login=now(),
 		                  date_joined=now(), **extra_fields)
 		user.set_password(password)
@@ -34,13 +34,13 @@ class CustomUserManager(BaseUserManager):
 		return user
 
 	def create_user(self, email, password=None, **extra_fields):
-		return self._create_user(email, password, False, False, **extra_fields)
+		return self._create_user(email, password, False, **extra_fields)
 
 	def create_superuser(self, email, password=None, **extra_fields):
-		return self._create_user(email, password, True, True, **extra_fields)
+		return self._create_user(email, password, True, **extra_fields)
 
 
-class CustomUser(AbstractBaseUser):
+class CustomUser(AbstractUser, PermissionsMixin):
 
 	email = models.CharField(max_length=80, unique=True)
 	name = models.CharField(max_length=100, blank=True, null=True)
@@ -48,7 +48,7 @@ class CustomUser(AbstractBaseUser):
 	facebook_id = models.CharField(max_length=100, blank=True, null=True, unique=True)
 	date_joined = models.DateTimeField(default=now())
 
-	is_staff = models.BooleanField(default=False)
+	# is_staff = models.BooleanField(default=False)
 	is_active = models.BooleanField(default=True)
 	is_superuser = models.BooleanField(default=False)
 	USERNAME_FIELD = 'email'
@@ -71,17 +71,11 @@ class CustomUser(AbstractBaseUser):
 		return '/users/%s/' % urlquote(self.email)
 
 	def has_perm(self, perm, obj=None):
-		"Does the user have a specific permission?"
-		# Simplest possible answer: Yes, always
 		return True
 
 	def has_module_perms(self, app_label):
-		"Does the user have permissions to view the app `app_label`?"
-		# Simplest possible answer: Yes, always
 		return True
 
 	@property
 	def is_staff(self):
-		"Is the user a member of staff?"
-		# Simplest possible answer: All admins are staff
 		return self.is_superuser

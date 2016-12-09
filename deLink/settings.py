@@ -10,7 +10,7 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/1.10/ref/settings/
 """
 
-import os
+import os, mongoengine
 
 # Build paths inside the project like this: os.path.join(BASE_DIR, ...)
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -40,6 +40,7 @@ INSTALLED_APPS = [
     'mainapp',
     'rest_framework',
     'djangobower',
+    'rest_framework_mongoengine',
 ]
 
 STATICFILES_FINDERS = [
@@ -90,13 +91,13 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'deLink.wsgi.application'
 
-REST_FRAMEWORK = {
-    # Use Django's standard `django.contrib.auth` permissions,
-    # or allow read-only access for unauthenticated users.
-    'DEFAULT_PERMISSION_CLASSES': [
-        'rest_framework.permissions.DjangoModelPermissionsOrAnonReadOnly'
-    ]
-}
+# REST_FRAMEWORK = {
+#     # Use Django's standard `django.contrib.auth` permissions,
+#     # or allow read-only access for unauthenticated users.
+#     'DEFAULT_PERMISSION_CLASSES': [
+#         'rest_framework.permissions.DjangoModelPermissionsOrAnonReadOnly'
+#     ]
+# }
 
 
 # Database
@@ -113,8 +114,14 @@ DATABASES = {
     }
 }
 
+# mongoengine.connect('delink_storage', host='127.0.0.1', port=27017)
+
 AUTH_USER_MODEL = 'mainapp.CustomUser'
-AUTHENTICATION_BACKENDS = ('mainapp.backends.CustomUserAuth',)
+AUTHENTICATION_BACKENDS = (
+    'mainapp.backends.CustomUserAuth',
+)
+
+# SESSION_ENGINE = 'mongoengine.django.sessions'
 
 # Password validation
 # https://docs.djangoproject.com/en/1.10/ref/settings/#auth-password-validators
