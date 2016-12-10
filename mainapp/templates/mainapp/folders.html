@@ -1,0 +1,11 @@
+{% extends 'mainapp/base.html' %}
+{% block content %}
+{% for folder in folders %}
+    <h3>{{ folder.title }}</h3>
+    <form action="/folders/{{ folder.title }}" method="POST"> {% csrf_token %}
+        <button class="btn btn-success" value="{{ folder.id }}" name="folder_id">Go to folder</button>
+    </form>
+{% endfor %}
+
+
+{% endblock %}

@@ -38,11 +38,13 @@ class FolderSerializer(object):
 		if 'subfolders' in data.keys():
 			for folder in data['subfolders']:
 				folder['id'] = str(folder['_id'])
+				folder['_id'] = None
 				folder['subfolders'], folder['files'] = None, None
 
 		if 'files' in data.keys():
 			for file_ in data['files']:
 				file_['id'] = str(file_['_id'])
+				file_['_id'] = None
 		# return pickle.dumps(d)
 		return data
 
@@ -53,5 +55,5 @@ class FolderSerializer(object):
 				list_of_folders.append(self.serialize_folder_object(obj))
 
 			return json.dumps(list_of_folders)
-		return json.dumps(self.serialize_folder_object(data[0]))
+		return json.dumps(self.serialize_folder_object(data))
 		# return JSONRenderer.render(data)

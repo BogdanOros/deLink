@@ -4,6 +4,7 @@ from django.core.exceptions import ObjectDoesNotExist
 
 from django.contrib import auth
 from backends import CustomUserAuth
+from django.contrib.auth.decorators import login_required
 from django.views.decorators.csrf import csrf_exempt
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
@@ -20,8 +21,33 @@ storage_manager = StorageManager()
 def folders(request):
 
 	if request.method == 'GET':
-		serialized_list = FolderSerializer(storage_manager.get_folders())
-		return Response(serialized_list.data)
+		serialized_list = FolderSerializer(storage_manager.get_folders(), many=True)
+		print (serialized_list.data)
+		# return Response(serialized_list.data)
+		return render(request, 'mainapp/folders.html', {'folders': storage_manager.get_folders()})
+
+
+@login_required
+@api_view(['GET', 'POST'])
+@csrf_exempt
+def folder(request, path):
+	if request.method == 'POST':
+		folder_id = request.POST['folder_id']
+		folder = storage_manager.search_folder_by_id(folder_id)
+		serializer = FolderSerializer(folder)
+
+		return Response(serializer.data)
+	# elif request.method == 'GET':
+	# 	return render(request, 'mainapp/folders.html', {'folders': storage_manager.get_folders()})
+
+
+@login_required
+@api_view(['POST'])
+@csrf_exempt
+def create_new_folder(request, parent_folder=None):
+	if request.method == 'POST':
+		folder_title = request.POST['title']
+		print (request.user.id)
 
 
 @api_view(['GET'])
@@ -63,11 +89,11 @@ def logout(request):
 	"""
 	Logout user from system
 	"""
-	if request.method == 'POST':
-		auth.logout(request)
-		return Response({'ok': 'true'})
-	elif request.method == 'GET':
-		return render(request, 'mainapp/authorization.html')
+	# if request.method == 'POST':
+	print ('lol')
+	auth.logout(request)
+	# return Response({'ok': 'true'})
+	return render(request, 'mainapp/authorization.html')
 
 
 def upload_file(request):

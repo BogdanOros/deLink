@@ -115,7 +115,8 @@ DATABASES = {
 }
 
 # mongoengine.connect('delink_storage', host='127.0.0.1', port=27017)
-
+LOGIN_URL = '/authorization'
+APPEND_SLASH = False
 AUTH_USER_MODEL = 'mainapp.CustomUser'
 AUTHENTICATION_BACKENDS = (
     'mainapp.backends.CustomUserAuth',
