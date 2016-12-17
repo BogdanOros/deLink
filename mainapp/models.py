@@ -42,9 +42,8 @@ class CustomUserManager(BaseUserManager):
 
 class CustomUser(AbstractUser, PermissionsMixin):
 
+	# id = models.IntegerField(unique=True, blank=False)
 	email = models.CharField(max_length=80, unique=True)
-	name = models.CharField(max_length=100, blank=True, null=True)
-	surname = models.CharField(max_length=100, blank=True, null=True)
 	facebook_id = models.CharField(max_length=100, blank=True, null=True, unique=True)
 	date_joined = models.DateTimeField(default=now())
 
@@ -53,15 +52,15 @@ class CustomUser(AbstractUser, PermissionsMixin):
 	is_superuser = models.BooleanField(default=False)
 	USERNAME_FIELD = 'email'
 
-	REQUIRED_FIELDS = ['name', 'surname']
+	REQUIRED_FIELDS = ['first_name', 'last_name']
 
 	objects = CustomUserManager()
 
 	def get_full_name(self):
-		return self.surname + ' ' + self.name
+		return self.last_name + ' ' + self.first_name
 
 	def get_short_name(self):
-		return self.name
+		return self.first_name
 
 	class Meta:
 		verbose_name = 'user'

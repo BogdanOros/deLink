@@ -10,12 +10,17 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/1.10/ref/settings/
 """
 
-import os, mongoengine
+import os
 
 # Build paths inside the project like this: os.path.join(BASE_DIR, ...)
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
+DEFAULT_FOLDER_NAME = 'home'
 
+
+CORS_ORIGIN_ALLOW_ALL = True
+
+# CORS_ORIGIN_ALLOW_ALL = True
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/1.10/howto/deployment/checklist/
 
@@ -40,7 +45,7 @@ INSTALLED_APPS = [
     'mainapp',
     'rest_framework',
     'djangobower',
-    'rest_framework_mongoengine',
+    'corsheaders',
 ]
 
 STATICFILES_FINDERS = [
@@ -63,6 +68,7 @@ BOWER_INSTALLED_APPS = (
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
+    'corsheaders.middleware.CorsMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
@@ -91,15 +97,6 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'deLink.wsgi.application'
 
-# REST_FRAMEWORK = {
-#     # Use Django's standard `django.contrib.auth` permissions,
-#     # or allow read-only access for unauthenticated users.
-#     'DEFAULT_PERMISSION_CLASSES': [
-#         'rest_framework.permissions.DjangoModelPermissionsOrAnonReadOnly'
-#     ]
-# }
-
-
 # Database
 # https://docs.djangoproject.com/en/1.10/ref/settings/#databases
 
@@ -121,6 +118,7 @@ AUTH_USER_MODEL = 'mainapp.CustomUser'
 AUTHENTICATION_BACKENDS = (
     'mainapp.backends.CustomUserAuth',
 )
+
 
 # SESSION_ENGINE = 'mongoengine.django.sessions'
 

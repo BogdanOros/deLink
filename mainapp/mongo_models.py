@@ -1,20 +1,51 @@
+from datetime import datetime
+
+
+class File(object):
+	def __init__(self, filename, id):
+		self.id = id
+		self.filename = filename
+
+	def __str__(self):
+		return self.filename
+
+	def as_dict(self):
+		d = dict()
+		d['_id'] = self.id
+		d['filename'] = self.filename
+		return d
 
 
 class Folder(object):
-	def __init__(self, _id, title, list_of_subfolders, list_of_files, creation_date, user_id):
-		self.id = _id
+	def __init__(self, title, user_id):
 		self.title = title
-		self.subfolders = list_of_subfolders
-		self.files = list_of_files
-		self.creation_date = creation_date
+		self.creation_date = datetime.now()
 		self.user_id = user_id
+		self.subfolders = []
+		self.files = []
 
 	def __str__(self):
 		return self.title
 
+	def as_dict(self):
+		d = dict()
+		d['title'] = self.title
+		d['creation_date'] = self.creation_date
+		d['user_id'] = self.user_id
+		d['subfolders'] = self.subfolders
+		d['files'] = self.files
+		return d
 
 
-
+# class MainFolder(Folder):
+# 	def __init__(self, title, list_of_subfolders, list_of_files, creation_date, user_id):
+# 		super(MainFolder, self).__init__(title, list_of_subfolders, list_of_files, creation_date, user_id)
+#
+#
+# f = Folder('suk', None, None, datetime.now(), 1).as_dict()
+# print (f)
+# main_f = MainFolder('pzdc', None, None, datetime.now(), 1).as_dict()
+# print (main_f)
 
 # from mongoengine import Document, StringField, \
 # 	EmbeddedDocumentField, EmbeddedDocument, \

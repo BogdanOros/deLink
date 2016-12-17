@@ -1,11 +1,20 @@
 {% extends 'mainapp/base.html' %}
 {% block content %}
-{% for folder in folders %}
+{% for folder in folder.subfolders %}
     <h3>{{ folder.title }}</h3>
     <form action="/folders/{{ folder.title }}" method="POST"> {% csrf_token %}
         <button class="btn btn-success" value="{{ folder.id }}" name="folder_id">Go to folder</button>
     </form>
+
+
 {% endfor %}
 
+<h3> Create new folder </h3>
+    <form action="/create_new_folder" method="POST">{% csrf_token %}
+    <input type="text" value="{{ folder.id }}" name="parent_id" hidden>
+    <input type="text" name="title">
+    <input type="text" name="is_main" value="true" hidden>
+    <button type="submit" class="btn btn-primary">Create new folder</button>
+    </form>
 
 {% endblock %}

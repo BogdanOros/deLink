@@ -9,11 +9,14 @@
         {% endif %}
     </div>
     <div class="col-md-4 col-md-12">
-        <div class="col-md-6">
+        <div class="col-md-4">
             <a href="{% url 'mainapp:registration' %}"><h3>Sign up</h3></a>
         </div>
-        <div class="col-md-6">
+        <div class="col-md-4">
             <a href="{% url 'mainapp:authorization' %}"><h3>Sign in</h3></a>
+        </div>
+        <div class="col-md-4">
+            <a href="{% url 'mainapp:logout' %}"><h3>Logout</h3></a>
         </div>
     </div>
     <div class="col-md-4">
