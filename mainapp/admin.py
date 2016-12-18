@@ -12,7 +12,7 @@ class UserCreationForm(forms.ModelForm):
 
 	class Meta:
 		model = CustomUser
-		fields = ('email', 'first_name', 'last_name', 'facebook_id')
+		fields = ('email', 'username', 'first_name', 'last_name', 'facebook_id')
 
 	def clean_password2(self):
 		# Check that the two password entries match
@@ -40,7 +40,7 @@ class UserChangeForm(forms.ModelForm):
 
 	class Meta:
 		model = CustomUser
-		fields = ('email', 'password', 'first_name', 'last_name', 'date_joined',
+		fields = ('email', 'username', 'password', 'first_name', 'last_name', 'date_joined',
 		          'facebook_id', 'is_active', 'is_superuser')
 
 	def clean_password(self):
@@ -58,12 +58,12 @@ class UserAdmin(BaseUserAdmin):
 	# The fields to be used in displaying the User model.
 	# These override the definitions on the base UserAdmin
 	# that reference specific fields on auth.User.
-	list_display = ('email', 'password', 'first_name', 'last_name', 'date_joined',
+	list_display = ('email', 'username', 'password', 'first_name', 'last_name', 'date_joined',
 	                'facebook_id', 'is_active', 'is_superuser')
 	list_filter = ('is_superuser',)
 	fieldsets = (
 	    (None, {'fields': ('email', 'first_name',)}),
-	    ('Personal info', {'fields': ('facebook_id', 'first_name', 'last_name')}),
+	    ('Personal info', {'fields': ('username', 'facebook_id', 'first_name', 'last_name')}),
 	    ('Permissions', {'fields': ('is_superuser',)}),
 	)
 	# add_fieldsets is not a standard ModelAdmin attribute. UserAdmin
@@ -71,11 +71,11 @@ class UserAdmin(BaseUserAdmin):
 	add_fieldsets = (
 	    (None, {
 	        'classes': ('wide',),
-	        'fields': ('email', 'first_name', 'last_name', 'password1', 'password2')}
+	        'fields': ('email', 'username', 'first_name', 'last_name', 'password1', 'password2')}
 	    ),
 	)
-	search_fields = ('email',)
-	ordering = ('email',)
+	search_fields = ('username',)
+	ordering = ('username',)
 	filter_horizontal = ()
 
 admin.site.register(CustomUser, UserAdmin)

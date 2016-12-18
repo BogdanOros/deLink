@@ -1,7 +1,7 @@
 from rest_framework import serializers
 from rest_framework.renderers import JSONRenderer
 from .mongo_models import Folder
-from .models import CustomUser as User
+from .models import CustomUser as User, Friendship, FriendRequest
 from collections import defaultdict
 from bson import json_util
 import json
@@ -48,6 +48,7 @@ class FolderSerializer(object):
 
 class UserSerializer(serializers.Serializer):
 	id = serializers.IntegerField(read_only=True)
+	password = serializers.CharField(required=True, allow_blank=False, max_length=80)
 	email = serializers.CharField(required=True, allow_blank=False, max_length=80)
 	first_name = serializers.CharField(required=True, allow_blank=False, max_length=100)
 	username = serializers.CharField(required=True, allow_blank=False, max_length=100)
@@ -59,6 +60,7 @@ class UserSerializer(serializers.Serializer):
 
 	def update(self, instance, validated_data):
 		instance.email = validated_data.get('email', instance.email)
+		instance.password = validated_data.get('password', instance.password)
 		instance.username = validated_data.get('username', instance.username)
 		instance.first_name = validated_data.get('first_name', instance.first_name)
 		instance.last_name = validated_data.get('last_name', instance.last_name)
@@ -66,3 +68,14 @@ class UserSerializer(serializers.Serializer):
 		instance.save()
 		return instance
 
+
+class FriendshipSerializer(serializers.ModelSerializer):
+	class Meta:
+		model = Friendship
+		fields = ('first_user', 'second_user', 'created_date')
+
+
+class FriendRequestSerializer(serializers.ModelSerializer):
+	class Meta:
+		model = FriendRequest
+		fields = ('from_user', 'to_user', 'created_date')

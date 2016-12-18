@@ -3,6 +3,17 @@ from django.contrib.auth.models import AbstractBaseUser, BaseUserManager, Permis
 from django.db import models
 from datetime import datetime
 from django.utils.timezone import now
+from django.db.models.signals import post_save
+from django.dispatch import receiver
+from deLink import settings
+from rest_framework.authtoken.models import Token
+
+
+# This code is triggered whenever a new user has been created and saved to the database
+@receiver(post_save, sender=settings.AUTH_USER_MODEL)
+def create_auth_token(sender, instance=None, created=False, **kwargs):
+	if created:
+		Token.objects.create(user=instance)
 
 
 class Friendship(models.Model):
@@ -10,10 +21,22 @@ class Friendship(models.Model):
 	                               related_name='first_contact')
 	second_user = models.ForeignKey('CustomUser', models.DO_NOTHING, blank=True, null=True,
 	                                related_name='second_contact')
+	created_date = models.DateTimeField(default=now())
 
 	class Meta:
 		# managed = False
 		db_table = 'Friendship'
+
+
+class FriendRequest(models.Model):
+	from_user = models.ForeignKey('CustomUser', models.DO_NOTHING, blank=True, null=True,
+	                               related_name='from_user')
+	to_user = models.ForeignKey('CustomUser', models.DO_NOTHING, blank=True, null=True,
+	                                related_name='to_user')
+	created_date = models.DateTimeField(default=now())
+
+	class Meta:
+		db_table = 'FriendRequest'
 
 
 class CustomUserManager(BaseUserManager):
@@ -29,6 +52,7 @@ class CustomUserManager(BaseUserManager):
 		user = self.model(email=email, is_active=True,
 		                  is_superuser=is_superuser, last_login=now(),
 		                  date_joined=now(), **extra_fields)
+
 		user.set_password(password)
 		user.save(using=self._db)
 		return user
@@ -42,12 +66,10 @@ class CustomUserManager(BaseUserManager):
 
 class CustomUser(AbstractUser, PermissionsMixin):
 
-	# id = models.IntegerField(unique=True, blank=False)
 	email = models.CharField(max_length=80, unique=True)
 	facebook_id = models.CharField(max_length=100, blank=True, null=True, unique=True)
 	date_joined = models.DateTimeField(default=now())
 
-	# is_staff = models.BooleanField(default=False)
 	is_active = models.BooleanField(default=True)
 	is_superuser = models.BooleanField(default=False)
 	USERNAME_FIELD = 'email'

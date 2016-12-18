@@ -46,6 +46,7 @@ INSTALLED_APPS = [
     'rest_framework',
     'djangobower',
     'corsheaders',
+    'rest_framework.authtoken',
 ]
 
 STATICFILES_FINDERS = [
@@ -118,6 +119,16 @@ AUTH_USER_MODEL = 'mainapp.CustomUser'
 AUTHENTICATION_BACKENDS = (
     'mainapp.backends.CustomUserAuth',
 )
+
+
+REST_FRAMEWORK = {
+    'DEFAULT_PERMISSION_CLASSES': (
+        'rest_framework.permissions.IsAuthenticated',
+    ),
+    'DEFAULT_AUTHENTICATION_CLASSES': (
+        'rest_framework.authentication.TokenAuthentication',
+    )
+}
 
 
 # SESSION_ENGINE = 'mongoengine.django.sessions'

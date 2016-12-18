@@ -7,7 +7,7 @@ class CustomUserAuth(object):
 	@staticmethod
 	def authenticate(username=None, password=None):
 		try:
-			user = CustomUser.objects.get(email=username)
+			user = CustomUser.objects.get(username=username)
 			# print (username, password)
 			if user.check_password(password):
 				return user
