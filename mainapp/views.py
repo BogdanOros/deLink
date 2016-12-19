@@ -29,6 +29,8 @@ from .services import get_friend_status, get_title_from_path, get_type_of_file
 from .cache_manager import CacheManager
 from bson.objectid import ObjectId
 import pickle
+from bson import json_util
+from django.db.models import Q
 
 # TODO get folder method - permissions
 
@@ -49,37 +51,42 @@ def get_folder(request, username, path):
 	cache_manager.cache_statistics()
 	if request.method == 'POST':
 		data = JSONParser().parse(request)
-		folder_id = data['folder_id']
-		folder = storage_manager.search_folder_by_id(folder_id)
+		user_id = CustomUser.objects.get(username=username).pk
 
-
-		serializer = FolderSerializer(folder)
-
-		cache_manager.cache_last_visited_folder(request.user.id, serializer.data)
-		return Response(serializer.data, status=status.HTTP_200_OK)
-
-	elif request.method == 'GET':
-		title = get_title_from_path(path)
-		if title == 'home':
-			user_id = CustomUser.objects.get(username=username).pk
-			if user_id == request.user.id:
-				folder = cache_manager.get_last_visited_folder(user_id)
-				if not folder:
-					folder = storage_manager.search_folder_by_title(title, request.user.id)
-				else:
-					return Response(folder, status=status.HTTP_200_OK)
-			else:
-				# friendship = Friendship.objects.filter(first_user=)
-				folder = cache_manager.get_last_visited_folder(user_id)
-				if not folder:
-					folder = storage_manager.search_folder_by_title(title, user_id)
-				else:
-					return Response(folder, status=status.HTTP_200_OK)
+		if user_id == request.user.id:
+			folder_id = data['folder_id']
+			folder = storage_manager.search_folder_by_id(folder_id)
 
 			serializer = FolderSerializer(folder)
+			cache_manager.cache_last_visited_folder(request.user.id, serializer.data)
 			return Response(serializer.data, status=status.HTTP_200_OK)
+		elif not Friendship.objects.filter(first_user=request.user.id, second_user=user_id):
+			return Response('You have no access', status=status.HTTP_423_LOCKED)
+		# else:
+		# 	if request.user.id in folder['has_permission']:
+		#
+
+	elif request.method == 'GET':
+		# title = get_title_from_path(path)
+
+		user_id = CustomUser.objects.get(username=username).pk
+		print request.user.id
+		if user_id == request.user.id:
+			folder = cache_manager.get_last_visited_folder(request.user.id)
+			if not folder:
+				folder = storage_manager.search_folder_by_title(settings.DEFAULT_FOLDER_NAME, request.user.id)
+			else:
+				return Response(folder, status=status.HTTP_200_OK)
 		else:
-			return Response('Bad request', status=status.HTTP_400_BAD_REQUEST)
+			friendship = Friendship.objects.filter(first_user=request.user.id, second_user=user_id)
+			if not friendship:
+				return Response('You have no access to this folder', status=status.HTTP_423_LOCKED)
+
+			folder = storage_manager.search_folder_by_title(settings.DEFAULT_FOLDER_NAME, user_id)
+			# folder['permission'] = friendship.permission
+
+		serializer = FolderSerializer(folder)
+		return Response(serializer.data, status=status.HTTP_200_OK)
 
 
 @api_view(['POST'])
@@ -159,7 +166,7 @@ def search_content(request):
 
 		files, folders = storage_manager.search(query, request.user.id)
 		obj_to_cache = dict()
-		obj_to_cache['folders'], obj_to_cache['files'] = None, None
+		obj_to_cache['folders'], obj_to_cache['files'] = [], []
 		if folders:
 			serializer = FolderSerializer(folders, many=True)
 			obj_to_cache['folders'] = serializer.data
@@ -188,12 +195,33 @@ def profile(request, username):
 	if request.method == 'GET':
 
 		user = CustomUser.objects.get(username=username)
+		if not user:
+			return Response('No such user', status=status.HTTP_400_BAD_REQUEST)
 		serializer = UserSerializer(user)
 		if user.id != request.user.id:
 			data = serializer.data
 			data["status"] = get_friend_status(request.user, user)
 			return Response(data, status=status.HTTP_200_OK)
-		return Response(serializer.data, status=status.HTTP_200_OK)
+		requests = FriendRequest.objects.filter(to_user=request.user.pk)
+		data = serializer.data
+		if requests:
+			friend_request = dict()
+			buff = []
+			for r in requests:
+				friend_request['id'] = r.pk
+				friend_request['username'] = r.from_user.username
+				friend_request['date'] = r.created_date
+				buff.append(json.loads(json.dumps(friend_request, default=json_util.default)))
+			data['requests'] = buff
+		friendships = Friendship.objects.filter(first_user=request.user.id)
+
+		if friendships:
+			friends = []
+			for friendship in friendships:
+				friends.append(friendship.second_user)
+			serialized_friends = UserSerializer(friends, many=True)
+			data['friends'] = serialized_friends.data
+		return Response(data, status=status.HTTP_200_OK)
 
 
 @api_view(['POST'])
@@ -226,6 +254,7 @@ def authorization(request):
 		user = CustomUserAuth.authenticate(username=data['username'], password=data['password'])
 		if user:
 			auth.login(request, user)
+			print request.user.id
 			serializer = UserSerializer(user)
 			return Response(serializer.data)
 		else:
@@ -241,7 +270,28 @@ def logout(request):
 	storage_manager.user_activity(request.user.username, request.build_absolute_uri())
 	if request.method == 'GET':
 		auth.logout(request)
+		print request.user.id
 		return Response('logged out')
+
+
+@api_view(['POST'])
+@permission_classes((AllowAny, ))
+def search_user(request):
+
+	if request.method == 'POST':
+		data = JSONParser().parse(request)
+		query = data['query']
+		print request.user.id
+		searched_users = CustomUser.objects.filter(Q(username__icontains=query) & ~Q(pk=request.user.id))
+		data = []
+		for user in searched_users:
+			serializer = UserSerializer(user)
+			buff = serializer.data
+			buff["is_friend"] = get_friend_status(request.user, user)
+			data.append(buff)
+		if data:
+			return Response(data, status=status.HTTP_200_OK)
+		return Response("No users with such username", status=status.HTTP_400_BAD_REQUEST)
 
 
 # --------------------------------------------FRIENDSHIP METHODS----------------------------------------------------
@@ -253,9 +303,14 @@ def send_friend_request(request):
 	storage_manager.user_activity(request.user.username, request.build_absolute_uri())
 	if request.method == 'POST':
 		data = JSONParser().parse(request)
-		friend_request = FriendRequest.objects.filter(Q(from_user=data['from_user'], to_user=data['to_user']) |
-		                                              Q(from_user=data['to_user'], to_user=data['from_user']))
+		from_user = request.user.id
+		to_user_username = data['to_user']
+		to_user = CustomUser.objects.get(username=to_user_username).pk
+		friend_request = FriendRequest.objects.filter(Q(from_user=from_user, to_user=to_user) |
+		                                              Q(from_user=to_user, to_user=from_user))
 		if not friend_request:
+			data['to_user'] = to_user
+			data['from_user'] = request.user.id
 			serializer = FriendRequestSerializer(data=data)
 			if serializer.is_valid():
 				serializer.save()
@@ -263,15 +318,39 @@ def send_friend_request(request):
 			return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 		return Response('You have already sent the request!')
 
-#
-# @api_view(['POST'])
-# @permission_classes((AllowAny, ))
-# def accept_friend_request(request):
-# 	storage_manager.user_activity(request.user.username, request.build_absolute_uri())
-# 	if request.method == 'POST':
-#
+
+@api_view(['POST'])
+@permission_classes((AllowAny, ))
+def accept_friend_request(request):
+	storage_manager.user_activity(request.user.username, request.build_absolute_uri())
+	if request.method == 'POST':
+		data = JSONParser().parse(request)
+		request_id = data['request_id']
+		friend_request = FriendRequest.objects.get(pk=request_id)
+		if not friend_request:
+			return Response('Server error', status=status.HTTP_404_NOT_FOUND)
+
+		from_user, to_user = friend_request.from_user, friend_request.to_user
+		friend_request.delete()
+		friendship = Friendship(first_user=from_user, second_user=to_user)
+		friendship.save()
+		friendship = Friendship(first_user=to_user, second_user=from_user)
+		friendship.save()
+		return Response('Friendship created', status=status.HTTP_201_CREATED)
 
 
+@api_view(['POST'])
+@permission_classes((AllowAny,))
+def decline_friend_request(request):
+	storage_manager.user_activity(request.user.username, request.build_absolute_uri())
+	if request.method == 'POST':
+		data = JSONParser().parse(request)
+		request_id = data['request_id']
+		friend_request = FriendRequest.objects.get(pk=request_id)
+		if not friend_request:
+			return Response('Server error', status=status.HTTP_404_NOT_FOUND)
+		friend_request.delete()
+		return Response('Request declined', status=status.HTTP_200_OK)
 # -----------------------------------------------FILE METHODS-----------------------------------------------------
 
 

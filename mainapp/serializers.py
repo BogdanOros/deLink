@@ -22,9 +22,9 @@ class FolderSerializer(object):
 
 	@staticmethod
 	def serialize_folder_object(data):
+		data['has_permission'] = None
 		if 'subfolders' in data.keys():
 			for folder in data['subfolders']:
-
 				folder['subfolders'], folder['files'] = None, None
 
 		return data
@@ -65,7 +65,7 @@ class UserSerializer(serializers.Serializer):
 class FriendshipSerializer(serializers.ModelSerializer):
 	class Meta:
 		model = Friendship
-		fields = ('first_user', 'second_user', 'created_date', 'permission')
+		fields = ('first_user', 'second_user', 'created_date')
 
 
 class FriendRequestSerializer(serializers.ModelSerializer):

@@ -8,7 +8,8 @@ urlpatterns = [
 
     url(r'^registration$', views.registration),
     url(r'^authorization$', views.authorization),
-    url(r'^logout$', views.logout, name='logout'),
+    url(r'^logout$', views.logout),
+    url(r'^search_user$', views.search_user),
 
     url(r'^(?P<username>[A-Za-z0-9]{2,})/(?P<path>[A-Za-z0-9/]*)$', views.get_folder),
     url(r'^create_folder$', views.create_new_folder),
@@ -23,6 +24,9 @@ urlpatterns = [
     url(r'^update_file$', views.update_file),
 
     url(r'^u/(?P<username>[A-Za-z0-9]+)$', views.profile),
+
     url(r'^send_request$', views.send_friend_request),
+    url(r'^accept_request$', views.accept_friend_request),
+    url(r'^decline_request$', views.decline_friend_request),
 ]
 

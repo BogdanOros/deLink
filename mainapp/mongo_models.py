@@ -28,6 +28,7 @@ class Folder(object):
 		self.subfolders = subfolders if subfolders is not None else []
 		self.files = files if files is not None else []
 		self.parent_id = parent_id
+		self.has_permission = []
 
 	def __str__(self):
 		return self.title
@@ -40,6 +41,7 @@ class Folder(object):
 		d['subfolders'] = self.subfolders
 		d['files'] = self.files
 		d['parent_id'] = self.parent_id
+		d['has_permission'] = self.has_permission
 		return d
 
 

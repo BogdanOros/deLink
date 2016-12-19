@@ -22,7 +22,6 @@ class Friendship(models.Model):
 	second_user = models.ForeignKey('CustomUser', models.DO_NOTHING, blank=True, null=True,
 	                                related_name='second_contact')
 	created_date = models.DateTimeField(default=now())
-	permission = models.IntegerField(default=1)
 
 	class Meta:
 		# managed = False
