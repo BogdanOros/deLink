@@ -21,3 +21,7 @@ def get_title_from_path(path):
 		path = path[:-1]
 
 	return path.split('/')[-1]
+
+
+def get_type_of_file(filename):
+	return filename.split('.')[-1]

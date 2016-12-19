@@ -22,6 +22,7 @@ class Friendship(models.Model):
 	second_user = models.ForeignKey('CustomUser', models.DO_NOTHING, blank=True, null=True,
 	                                related_name='second_contact')
 	created_date = models.DateTimeField(default=now())
+	permission = models.IntegerField(default=1)
 
 	class Meta:
 		# managed = False
@@ -65,6 +66,7 @@ class CustomUserManager(BaseUserManager):
 
 
 class CustomUser(AbstractUser, PermissionsMixin):
+
 
 	email = models.CharField(max_length=80, unique=True)
 	facebook_id = models.CharField(max_length=100, blank=True, null=True, unique=True)

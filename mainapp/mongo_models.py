@@ -2,9 +2,11 @@ from datetime import datetime
 
 
 class File(object):
-	def __init__(self, filename, id):
+	def __init__(self, filename, id, type_, user_id):
 		self.id = id
 		self.filename = filename
+		self.type = type_
+		self.user_id = user_id
 
 	def __str__(self):
 		return self.filename
@@ -13,16 +15,19 @@ class File(object):
 		d = dict()
 		d['_id'] = self.id
 		d['filename'] = self.filename
+		d['type'] = self.type
+		d['user_id'] = self.user_id
 		return d
 
 
 class Folder(object):
-	def __init__(self, title, user_id):
+	def __init__(self, title, user_id, parent_id=None, subfolders=None, files=None):
 		self.title = title
 		self.creation_date = datetime.now()
 		self.user_id = user_id
-		self.subfolders = []
-		self.files = []
+		self.subfolders = subfolders if subfolders is not None else []
+		self.files = files if files is not None else []
+		self.parent_id = parent_id
 
 	def __str__(self):
 		return self.title
@@ -34,6 +39,7 @@ class Folder(object):
 		d['user_id'] = self.user_id
 		d['subfolders'] = self.subfolders
 		d['files'] = self.files
+		d['parent_id'] = self.parent_id
 		return d
 
 

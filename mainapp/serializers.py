@@ -8,10 +8,12 @@ import json
 # TODO: change FolderSerializer for mainfolder objects
 
 
-# class UserSerializer(serializers.ModelSerializer):
-# 	class Meta:
-# 		model = User
-# 		fields = ('id', 'email', 'first_name', 'last_name', 'facebook_id', 'username', 'password')
+class FileSerializer(object):
+	def __init__(self, data):
+		self.data = self.serialize(data)
+
+	def serialize(self, data):
+		return json.loads(json.dumps(data, default=json_util.default))
 
 
 class FolderSerializer(object):
@@ -20,20 +22,11 @@ class FolderSerializer(object):
 
 	@staticmethod
 	def serialize_folder_object(data):
-		# data['id'] = str(data['_id'])
-		# del data['_id']
-
 		if 'subfolders' in data.keys():
 			for folder in data['subfolders']:
-				# folder['id'] = str(folder['_id'])
-				# folder['_id'] = None
+
 				folder['subfolders'], folder['files'] = None, None
 
-		# if 'files' in data.keys():
-		# 	for file_ in data['files']:
-		# 		file_['id'] = str(file_['_id'])
-		# 		file_['_id'] = None
-		# return pickle.dumps(d)
 		return data
 
 	def serialize(self, data, many):
@@ -47,7 +40,7 @@ class FolderSerializer(object):
 
 
 class UserSerializer(serializers.Serializer):
-	id = serializers.IntegerField(read_only=True)
+
 	password = serializers.CharField(required=True, allow_blank=False, max_length=80)
 	email = serializers.CharField(required=True, allow_blank=False, max_length=80)
 	first_name = serializers.CharField(required=True, allow_blank=False, max_length=100)
@@ -72,7 +65,7 @@ class UserSerializer(serializers.Serializer):
 class FriendshipSerializer(serializers.ModelSerializer):
 	class Meta:
 		model = Friendship
-		fields = ('first_user', 'second_user', 'created_date')
+		fields = ('first_user', 'second_user', 'created_date', 'permission')
 
 
 class FriendRequestSerializer(serializers.ModelSerializer):
