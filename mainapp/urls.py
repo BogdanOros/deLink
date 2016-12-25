@@ -10,6 +10,9 @@ urlpatterns = [
     url(r'^authorization$', views.authorization),
     url(r'^logout$', views.logout),
     url(r'^search_user$', views.search_user),
+    url(r'^forgot_password$', views.forgot_password),
+    url(r'^reset_password$', views.reset_password),
+    url(r'^update_profile$', views.update_profile),
 
     url(r'^(?P<username>[A-Za-z0-9]{2,})/(?P<path>[A-Za-z0-9/]*)$', views.get_folder),
     url(r'^create_folder$', views.create_new_folder),
@@ -28,5 +31,11 @@ urlpatterns = [
     url(r'^send_request$', views.send_friend_request),
     url(r'^accept_request$', views.accept_friend_request),
     url(r'^decline_request$', views.decline_friend_request),
+    url(r'^delete_friend$', views.delete_from_friends),
+
+    url(r'^give_edit_permission$', views.give_edit_permission),
+    url(r'^give_read_permission$', views.give_read_permission),
+    url(r'^deny_edit_permission$', views.deny_edit_permission),
+    url(r'^deny_read_permission$', views.deny_read_permission),
 ]
 

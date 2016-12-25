@@ -1,6 +1,3 @@
-import bitarray
-import base64
-import json
 # imports from django
 from django.shortcuts import render
 from django.http import HttpResponseRedirect
@@ -25,13 +22,17 @@ from .mongo_models import Folder, File
 from .serializers import FolderSerializer, UserSerializer, \
 	FriendshipSerializer, FriendRequestSerializer, FileSerializer
 from .storage_manager import StorageManager
-from .services import get_friend_status, get_title_from_path, get_type_of_file
+from .services import get_friend_status, get_title_from_path, \
+	get_type_of_file, generate_reset_code, check_permissions
 from .cache_manager import CacheManager
 from bson.objectid import ObjectId
 import pickle
 from bson import json_util
 from django.db.models import Q
+from django.core.mail import send_mail
 
+import base64
+import json
 # TODO get folder method - permissions
 
 storage_manager = StorageManager()
@@ -52,25 +53,24 @@ def get_folder(request, username, path):
 	if request.method == 'POST':
 		data = JSONParser().parse(request)
 		user_id = CustomUser.objects.get(username=username).pk
+		folder_id = data['folder_id']
 
 		if user_id == request.user.id:
-			folder_id = data['folder_id']
 			folder = storage_manager.search_folder_by_id(folder_id)
-
 			serializer = FolderSerializer(folder)
 			cache_manager.cache_last_visited_folder(request.user.id, serializer.data)
 			return Response(serializer.data, status=status.HTTP_200_OK)
-		elif not Friendship.objects.filter(first_user=request.user.id, second_user=user_id):
-			return Response('You have no access', status=status.HTTP_423_LOCKED)
-		# else:
-		# 	if request.user.id in folder['has_permission']:
-		#
-
+		else:
+			friendship = Friendship.objects.filter(first_user=request.user.id, second_user=user_id)
+			if not friendship:
+				return Response('You have no access to this folder', status=status.HTTP_423_LOCKED)
+			folder = check_permissions(storage_manager.search_folder_by_id(folder_id))
+			serializer = FolderSerializer(folder)
+			return Response(serializer.data, status=status.HTTP_200_OK)
 	elif request.method == 'GET':
 		# title = get_title_from_path(path)
 
 		user_id = CustomUser.objects.get(username=username).pk
-		print request.user.id
 		if user_id == request.user.id:
 			folder = cache_manager.get_last_visited_folder(request.user.id)
 			if not folder:
@@ -82,8 +82,7 @@ def get_folder(request, username, path):
 			if not friendship:
 				return Response('You have no access to this folder', status=status.HTTP_423_LOCKED)
 
-			folder = storage_manager.search_folder_by_title(settings.DEFAULT_FOLDER_NAME, user_id)
-			# folder['permission'] = friendship.permission
+			folder = check_permissions(storage_manager.search_folder_by_title(settings.DEFAULT_FOLDER_NAME, user_id))
 
 		serializer = FolderSerializer(folder)
 		return Response(serializer.data, status=status.HTTP_200_OK)
@@ -233,6 +232,14 @@ def registration(request):
 
 	if request.method == 'POST':
 		data = JSONParser().parse(request)
+		username = data['username']
+		email = data['email']
+		user = CustomUser.objects.filter(username=username)
+		if user:
+			return Response('User with such username already exists!', status=status.HTTP_400_BAD_REQUEST)
+		user = CustomUser.objects.filter(email=email)
+		if user:
+			return Response('User with such email already exists!', status=status.HTTP_400_BAD_REQUEST)
 		serializer = UserSerializer(data=data)
 		if serializer.is_valid():
 			serializer.save()
@@ -254,9 +261,13 @@ def authorization(request):
 		user = CustomUserAuth.authenticate(username=data['username'], password=data['password'])
 		if user:
 			auth.login(request, user)
-			print request.user.id
+			token = Token.objects.get(user=user)
+			token.delete()
+			new_token = Token.objects.create(user=user)
 			serializer = UserSerializer(user)
-			return Response(serializer.data)
+			data = serializer.data
+			data['token'] = new_token.key
+			return Response(data)
 		else:
 			return Response('Authorization error', status=status.HTTP_400_BAD_REQUEST)
 
@@ -270,7 +281,6 @@ def logout(request):
 	storage_manager.user_activity(request.user.username, request.build_absolute_uri())
 	if request.method == 'GET':
 		auth.logout(request)
-		print request.user.id
 		return Response('logged out')
 
 
@@ -281,7 +291,6 @@ def search_user(request):
 	if request.method == 'POST':
 		data = JSONParser().parse(request)
 		query = data['query']
-		print request.user.id
 		searched_users = CustomUser.objects.filter(Q(username__icontains=query) & ~Q(pk=request.user.id))
 		data = []
 		for user in searched_users:
@@ -294,6 +303,47 @@ def search_user(request):
 		return Response("No users with such username", status=status.HTTP_400_BAD_REQUEST)
 
 
+@api_view(['POST'])
+@permission_classes((AllowAny, ))
+def forgot_password(request):
+
+	if request.method == 'POST':
+		data = JSONParser().parse(request)
+		to_mail = data['email']
+		code = generate_reset_code().upper()
+		message = """
+				  <html>
+				  <head></head>
+				  <body>
+			          <h2> Hello cutie </h2>
+			          <h3> I\'ve heard that you forgot your password :(.
+			               So I\'m here today to send you something that might help you :).<br>
+			               Here\'s the code <b>""" + code + """</b>.
+	                       Put it in the form and create new password.</h3>
+	                  <h2>Don\'t forget it next time! :)</h2>
+	              </body>
+				  </html>
+                  """
+		storage_manager.save_reset_code(code, to_mail)
+		send_mail('Reset code', '', settings.FROM_MAIL, [to_mail], fail_silently=False, html_message=message)
+		return Response('Reset code is sent.', status=status.HTTP_200_OK)
+
+
+@api_view(['POST'])
+@permission_classes((AllowAny, ))
+def reset_password(request):
+
+	if request.method == 'POST':
+		data = JSONParser().parse(request)
+		reset_obj = storage_manager.get_reset_code(data['code'].upper())
+		if reset_obj:
+			new_password = data['password']
+			user = CustomUser.objects.get(email=reset_obj['email'])
+			if user:
+				user.set_password(new_password)
+				user.save()
+				return Response('OK', status=status.HTTP_200_OK)
+		return Response('Invalid code', status=status.HTTP_400_BAD_REQUEST)
 # --------------------------------------------FRIENDSHIP METHODS----------------------------------------------------
 
 
@@ -351,11 +401,109 @@ def decline_friend_request(request):
 			return Response('Server error', status=status.HTTP_404_NOT_FOUND)
 		friend_request.delete()
 		return Response('Request declined', status=status.HTTP_200_OK)
-# -----------------------------------------------FILE METHODS-----------------------------------------------------
+
+
+@api_view(['POST'])
+@permission_classes((AllowAny,))
+def delete_from_friends(request):
+	storage_manager.user_activity(request.user.username, request.build_absolute_uri())
+	if request.method == 'POST':
+		data = JSONParser().parse(request)
+		user_id = data['user_id']
+		from_friendship = Friendship.objects.get(from_user=user_id)
+		to_friendship = Friendship.objects.get(to_user=user_id)
+		if from_friendship and to_friendship:
+			from_friendship.delete()
+			to_friendship.delete()
+			return Response('Deleted', status=status.HTTP_200_OK)
+		return Response('Server error', status=status.HTTP_404_NOT_FOUND)
 
 
 @api_view(['POST'])
 @permission_classes((IsAuthenticated, ))
+def update_profile(request):
+	storage_manager.user_activity(request.user.username, request.build_absolute_uri())
+	if request.method == 'POST':
+		data = JSONParser().parse(request)
+		# user_id = data['user_id']
+		user = CustomUser.objects.get(pk=request.user.id)
+		serializer = UserSerializer(user)
+		serializer.update(user, data)
+		serializer.save()
+		return Response('OK', status=status.HTTP_200_OK)
+
+
+@api_view(['POST'])
+@permission_classes((IsAuthenticated, ))
+def give_read_permission(request):
+	storage_manager.user_activity(request.user.username, request.build_absolute_uri())
+	if request.method == 'POST':
+		data = JSONParser().parse(request)
+		if 'folder_id' in data.keys():
+			folder_id = data['folder_id']
+			storage_manager.give_folder_read_perm(folder_id, request.user.id)
+			return Response('OK', status=status.HTTP_200_OK)
+		elif 'file_id' in data.keys():
+			file_id = data['file_id']
+			storage_manager.give_file_read_perm(file_id, request.user.id)
+			return Response('OK', status=status.HTTP_200_OK)
+		return Response('Error', status=status.HTTP_400_BAD_REQUEST)
+
+
+@api_view(['POST'])
+@permission_classes((IsAuthenticated,))
+def give_edit_permission(request):
+	storage_manager.user_activity(request.user.username, request.build_absolute_uri())
+	if request.method == 'POST':
+		data = JSONParser().parse(request)
+		if 'folder_id' in data.keys():
+			folder_id = data['folder_id']
+			storage_manager.give_folder_edit_perm(folder_id, request.user.id)
+			return Response('OK', status=status.HTTP_200_OK)
+		elif 'file_id' in data.keys():
+			file_id = data['file_id']
+			storage_manager.give_file_edit_perm(file_id, request.user.id)
+			return Response('OK', status=status.HTTP_200_OK)
+		return Response('Error', status=status.HTTP_400_BAD_REQUEST)
+
+
+@api_view(['POST'])
+@permission_classes((IsAuthenticated, ))
+def deny_read_permission(request):
+	storage_manager.user_activity(request.user.username, request.build_absolute_uri())
+	if request.method == 'POST':
+		data = JSONParser().parse(request)
+		if 'folder_id' in data.keys():
+			folder_id = data['folder_id']
+			storage_manager.deny_folder_read_perm(folder_id, request.user.id)
+			return Response('OK', status=status.HTTP_200_OK)
+		elif 'file_id' in data.keys():
+			file_id = data['file_id']
+			storage_manager.deny_file_read_perm(file_id, request.user.id)
+			return Response('OK', status=status.HTTP_200_OK)
+		return Response('Error', status=status.HTTP_400_BAD_REQUEST)
+
+
+@api_view(['POST'])
+@permission_classes((IsAuthenticated,))
+def deny_edit_permission(request):
+	storage_manager.user_activity(request.user.username, request.build_absolute_uri())
+	if request.method == 'POST':
+		data = JSONParser().parse(request)
+		if 'folder_id' in data.keys():
+			folder_id = data['folder_id']
+			storage_manager.deny_folder_edit_perm(folder_id, request.user.id)
+			return Response('OK', status=status.HTTP_200_OK)
+		elif 'file_id' in data.keys():
+			file_id = data['file_id']
+			storage_manager.deny_file_edit_perm(file_id, request.user.id)
+			return Response('OK', status=status.HTTP_200_OK)
+		return Response('Error', status=status.HTTP_400_BAD_REQUEST)
+# -----------------------------------------------FILE METHODS-----------------------------------------------------
+
+
+@api_view(['POST'])
+@permission_classes((AllowAny, ))
 def upload_file(request):
 	storage_manager.user_activity(request.user.username, request.build_absolute_uri())
 	if request.method == 'POST':

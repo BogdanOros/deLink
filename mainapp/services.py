@@ -1,6 +1,8 @@
 from .models import CustomUser as User
 from .models import FriendRequest, Friendship
 from django.db.models import Q
+from deLink import settings
+import random
 
 
 def get_friend_status(session_user, requested_user):
@@ -25,3 +27,33 @@ def get_title_from_path(path):
 
 def get_type_of_file(filename):
 	return filename.split('.')[-1]
+
+
+def generate_reset_code():
+	code = ""
+	for i in range(settings.RESET_CODE_LENGTH):
+		next_index = random.randrange(len(settings.ALPHABET))
+		code += settings.ALPHABET[next_index]
+	return code
+
+
+def check_permissions(folder):
+	subfolders = folder['subfolders']
+	if subfolders:
+		subfolders_with_perm = []
+		for subfolder in subfolders:
+			if user_id in subfolder['read_permission']:
+				if user_id in subfolder['edit_permission']:
+					subfolder['editable'] = 1
+				subfolders_with_perm.append(subfolder)
+		folder.subfolders = subfolders_with_perm
+	files = folder['files']
+	if files:
+		files_with_perm = []
+		for file in files:
+			if user_id in file['read_permission']:
+				if user_id in file['edit_permission']:
+					file['editable'] = 1
+				files_with_perm.append(file)
+		folder.files = files_with_perm
+	return folder

@@ -53,11 +53,10 @@ class UserSerializer(serializers.Serializer):
 
 	def update(self, instance, validated_data):
 		instance.email = validated_data.get('email', instance.email)
-		instance.password = validated_data.get('password', instance.password)
 		instance.username = validated_data.get('username', instance.username)
 		instance.first_name = validated_data.get('first_name', instance.first_name)
 		instance.last_name = validated_data.get('last_name', instance.last_name)
-		instance.facebook_id = validated_data.get('facebook_id', instance.facebook_id)
+		# instance.facebook_id = validated_data.get('facebook_id', instance.facebook_id)
 		instance.save()
 		return instance
 

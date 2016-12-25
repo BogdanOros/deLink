@@ -136,3 +136,50 @@ class StorageManager(object):
 		else:
 			self.db.folder.update({'_id': ObjectId(parent_id), 'files._id': ObjectId(file_id)},
 			                      {'$set': {'files.$.filename': new_filename}})
+
+	def save_reset_code(self, code, email):
+		self.db.codes.insert_one({'code': code, 'date': str(date.today()), 'email': email})
+
+	def get_reset_code(self, code):
+		reset_code_obj = self.db.codes.find_one({'code': code})
+		if reset_code_obj:
+			self.db.codes.delete_one(reset_code_obj)
+			return reset_code_obj
+		return False
+
+	def delete_reset_code(self, email):
+		reset_code_obj = self.db.codes.find_one({'email': email})
+		if reset_code_obj:
+			self.db.codes.delete_one(reset_code_obj)
+
+	def give_folder_read_perm(self, folder_id, user_id):
+		self.db.folder.update_one({'_id': ObjectId(folder_id)},
+		                          {'$addToSet': {'read_permission': user_id}})
+
+	def give_file_read_perm(self, file_id, user_id):
+		self.db.files.update_one({'_id': ObjectId(file_id)},
+		                          {'$addToSet': {'read_permission': user_id}})
+
+	def give_folder_edit_perm(self, folder_id, user_id):
+		self.db.folder.update_one({'_id': ObjectId(folder_id)},
+		                          {'$addToSet': {'edit_permission': user_id}})
+
+	def give_file_edit_perm(self, file_id, user_id):
+		self.db.files.update_one({'_id': ObjectId(file_id)},
+		                         {'$addToSet': {'edit_permission': user_id}})
+
+	def deny_folder_read_perm(self, folder_id, user_id):
+		self.db.folder.update_one({'_id': ObjectId(folder_id)},
+		                          {'$pull': {'read_permission': user_id}})
+
+	def deny_file_read_perm(self, file_id, user_id):
+		self.db.files.update_one({'_id': ObjectId(file_id)},
+		                         {'$pull': {'read_permission': user_id}})
+
+	def deny_folder_edit_perm(self, folder_id, user_id):
+		self.db.folder.update_one({'_id': ObjectId(folder_id)},
+		                          {'$pull': {'edit_permission': user_id}})
+
+	def deny_file_edit_perm(self, file_id, user_id):
+		self.db.files.update_one({'_id': ObjectId(file_id)},
+		                         {'$pull': {'edit_permission': user_id}})
