@@ -21,20 +21,20 @@ class CacheManager(object):
 	def clear_last_visited_folder(self, key):
 		self.r.delete(str(key) + 'u')
 
-	def cache_folder(self, key, data):
-		self.r.set(str(key), pickle.dumps(data))
-		self.r.incr('cached_folders')
-
-	def get_folder(self, key):
-		data = self.r.get(str(key))
-		if data:
-			return pickle.loads(data)
-
-	def clear_folders_cache(self, key):
-		data = self.r.get(str(key))
-		if data:
-			self.r.delete(str(key))
-			self.r.decr('cached_folders')
+	# def cache_folder(self, key, data):
+	# 	self.r.set('f' + str(key), pickle.dumps(data))
+	# 	self.r.incr('cached_folders')
+	#
+	# def get_folder(self, key):
+	# 	data = self.r.get('f' + str(key))
+	# 	if data:
+	# 		return pickle.loads(data)
+	#
+	# def clear_folders_cache(self, key):
+	# 	data = self.r.get('f' + str(key))
+	# 	if data:
+	# 		self.r.delete('f' + str(key))
+	# 		self.r.decr('cached_folders')
 
 	def cache_search_query(self, user_id, key, data):
 		self.r.hset(user_id, key, pickle.dumps(data))
@@ -50,18 +50,10 @@ class CacheManager(object):
 		self.r.hdel(user_id)
 		self.r.decr('cached_search', count_of_users_keys)
 
-	def cache_statistics(self):
+	def get_cache_statistics(self):
 		# all_keys = len(self.r.keys())
-		search_keys, folder_keys = 0, 0
+		search_keys = 0
 		search = self.r.get('cached_search')
 		if search:
 			search_keys = search
-		folder = self.r.get('cached_folders')
-		if folder:
-			folder_keys = folder
-
-		all = int(search_keys) + int(folder_keys)
-
-		print ('All: ' + str(all))
-		print ('Search content: ' + str(search_keys))
-		print ('Folder keys: ' + str(folder_keys))
+		return search_keys

@@ -46,6 +46,7 @@ class UserSerializer(serializers.Serializer):
 	first_name = serializers.CharField(required=True, allow_blank=False, max_length=100)
 	username = serializers.CharField(required=True, allow_blank=False, max_length=100)
 	last_name = serializers.CharField(required=True, allow_blank=False, max_length=100)
+	is_superuser = serializers.BooleanField(default=False)
 	facebook_id = serializers.CharField(required=False, allow_blank=True, max_length=100)
 
 	def create(self, validated_data):

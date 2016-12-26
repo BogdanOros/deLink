@@ -30,12 +30,14 @@ import pickle
 from bson import json_util
 from django.db.models import Q
 from django.core.mail import send_mail
-
+from datetime import date
 import base64
 import json
 # TODO get folder method - permissions
 
 storage_manager = StorageManager()
+# storage_manager.db_dump()
+# storage_manager.db_restore('12-25-16')
 cache_manager = CacheManager()
 # -----------------------------------------------FOLDER METHODS-----------------------------------------------------
 
@@ -49,7 +51,7 @@ def get_folder(request, username, path):
 		2: if it is POST request, pulls out folder's id from POST and does select in MongoDB
 	"""
 	storage_manager.user_activity(request.user.username, request.build_absolute_uri())
-	cache_manager.cache_statistics()
+	# cache_manager.cache_statistics()
 	if request.method == 'POST':
 		data = JSONParser().parse(request)
 		user_id = CustomUser.objects.get(username=username).pk
@@ -64,13 +66,14 @@ def get_folder(request, username, path):
 			friendship = Friendship.objects.filter(first_user=request.user.id, second_user=user_id)
 			if not friendship:
 				return Response('You have no access to this folder', status=status.HTTP_423_LOCKED)
-			folder = check_permissions(storage_manager.search_folder_by_id(folder_id))
+			folder = check_permissions(storage_manager.search_folder_by_id(folder_id), user_id)
 			serializer = FolderSerializer(folder)
 			return Response(serializer.data, status=status.HTTP_200_OK)
 	elif request.method == 'GET':
 		# title = get_title_from_path(path)
 
 		user_id = CustomUser.objects.get(username=username).pk
+		print user_id, request.user.id
 		if user_id == request.user.id:
 			folder = cache_manager.get_last_visited_folder(request.user.id)
 			if not folder:
@@ -82,7 +85,7 @@ def get_folder(request, username, path):
 			if not friendship:
 				return Response('You have no access to this folder', status=status.HTTP_423_LOCKED)
 
-			folder = check_permissions(storage_manager.search_folder_by_title(settings.DEFAULT_FOLDER_NAME, user_id))
+			folder = check_permissions(storage_manager.search_folder_by_title(settings.DEFAULT_FOLDER_NAME, user_id), request.user.id)
 
 		serializer = FolderSerializer(folder)
 		return Response(serializer.data, status=status.HTTP_200_OK)
@@ -119,7 +122,6 @@ def delete_folder(request):
 	if request.method == 'POST':
 		data = JSONParser().parse(request)
 		storage_manager.delete_folder(data['folder_id'], data['parent_id'])
-		cache_manager.clear_folders_cache(data['parent_id'])
 
 		folder = storage_manager.search_folder_by_id(data['parent_id'])
 		serializer = FolderSerializer(folder)
@@ -137,7 +139,7 @@ def update_folder(request):
 	if request.method == 'POST':
 		data = JSONParser().parse(request)
 		storage_manager.update_folder(data['folder_id'], data['parent_id'], data['new_title'])
-		cache_manager.clear_folders_cache(data['parent_id'])
+		# cache_manager.clear_folders_cache(data['parent_id'])
 
 		folder = storage_manager.search_folder_by_id(data['parent_id'])
 		serializer = FolderSerializer(folder)
@@ -215,11 +217,13 @@ def profile(request, username):
 		friendships = Friendship.objects.filter(first_user=request.user.id)
 
 		if friendships:
+			data['friends'] = []
 			friends = []
 			for friendship in friendships:
-				friends.append(friendship.second_user)
-			serialized_friends = UserSerializer(friends, many=True)
-			data['friends'] = serialized_friends.data
+				serialized_friend = UserSerializer(friendship.second_user)
+				data_ = serialized_friend.data
+				data_['id'] = friendship.second_user.id
+				data['friends'].append(data_)
 		return Response(data, status=status.HTTP_200_OK)
 
 
@@ -421,15 +425,14 @@ def delete_from_friends(request):
 
 @api_view(['POST'])
 @permission_classes((IsAuthenticated, ))
-def update_profile(request):
+def change_password(request):
 	storage_manager.user_activity(request.user.username, request.build_absolute_uri())
 	if request.method == 'POST':
 		data = JSONParser().parse(request)
 		# user_id = data['user_id']
 		user = CustomUser.objects.get(pk=request.user.id)
-		serializer = UserSerializer(user)
-		serializer.update(user, data)
-		serializer.save()
+		user.set_password(data['password'])
+		user.save()
 		return Response('OK', status=status.HTTP_200_OK)
 
 
@@ -439,33 +442,17 @@ def give_read_permission(request):
 	storage_manager.user_activity(request.user.username, request.build_absolute_uri())
 	if request.method == 'POST':
 		data = JSONParser().parse(request)
+		username = data['username']
+		user_id = CustomUser.objects.get(username=username).pk
 		if 'folder_id' in data.keys():
 			folder_id = data['folder_id']
-			storage_manager.give_folder_read_perm(folder_id, request.user.id)
+			storage_manager.give_folder_read_perm(folder_id, user_id)
 			return Response('OK', status=status.HTTP_200_OK)
-		elif 'file_id' in data.keys():
-			file_id = data['file_id']
-			storage_manager.give_file_read_perm(file_id, request.user.id)
-			return Response('OK', status=status.HTTP_200_OK)
+		# elif 'file_id' in data.keys():
+		# 	file_id = data['file_id']
+		# 	storage_manager.give_file_read_perm(file_id, user_id)
+		# 	return Response('OK', status=status.HTTP_200_OK)
 		return Response('Error', status=status.HTTP_400_BAD_REQUEST)
-
-
-@api_view(['POST'])
-@permission_classes((IsAuthenticated,))
-def give_edit_permission(request):
-	storage_manager.user_activity(request.user.username, request.build_absolute_uri())
-	if request.method == 'POST':
-		data = JSONParser().parse(request)
-		if 'folder_id' in data.keys():
-			folder_id = data['folder_id']
-			storage_manager.give_folder_edit_perm(folder_id, request.user.id)
-			return Response('OK', status=status.HTTP_200_OK)
-		elif 'file_id' in data.keys():
-			file_id = data['file_id']
-			storage_manager.give_file_edit_perm(file_id, request.user.id)
-			return Response('OK', status=status.HTTP_200_OK)
-		return Response('Error', status=status.HTTP_400_BAD_REQUEST)
-
 
 @api_view(['POST'])
 @permission_classes((IsAuthenticated, ))
@@ -473,32 +460,18 @@ def deny_read_permission(request):
 	storage_manager.user_activity(request.user.username, request.build_absolute_uri())
 	if request.method == 'POST':
 		data = JSONParser().parse(request)
+		username = data['username']
+		user_id = CustomUser.objects.get(username=username).pk
 		if 'folder_id' in data.keys():
 			folder_id = data['folder_id']
-			storage_manager.deny_folder_read_perm(folder_id, request.user.id)
+			storage_manager.deny_folder_read_perm(folder_id, user_id)
 			return Response('OK', status=status.HTTP_200_OK)
 		elif 'file_id' in data.keys():
 			file_id = data['file_id']
-			storage_manager.deny_file_read_perm(file_id, request.user.id)
+			storage_manager.deny_file_read_perm(file_id, user_id)
 			return Response('OK', status=status.HTTP_200_OK)
 		return Response('Error', status=status.HTTP_400_BAD_REQUEST)
 
-
-@api_view(['POST'])
-@permission_classes((IsAuthenticated,))
-def deny_edit_permission(request):
-	storage_manager.user_activity(request.user.username, request.build_absolute_uri())
-	if request.method == 'POST':
-		data = JSONParser().parse(request)
-		if 'folder_id' in data.keys():
-			folder_id = data['folder_id']
-			storage_manager.deny_folder_edit_perm(folder_id, request.user.id)
-			return Response('OK', status=status.HTTP_200_OK)
-		elif 'file_id' in data.keys():
-			file_id = data['file_id']
-			storage_manager.deny_file_edit_perm(file_id, request.user.id)
-			return Response('OK', status=status.HTTP_200_OK)
-		return Response('Error', status=status.HTTP_400_BAD_REQUEST)
 # -----------------------------------------------FILE METHODS-----------------------------------------------------
 
 
@@ -514,7 +487,7 @@ def upload_file(request):
 		filename = file_.name
 		file_type = get_type_of_file(filename)
 		file_to_store = File(filename, storage_manager.save_file(file_.read()),
-		                     file_type, request.user.id).as_dict()
+		                     file_type, request.user.id, parent_id).as_dict()
 		storage_manager.add_to_folder(parent_id, file_to_store)
 
 		folder = storage_manager.search_folder_by_id(parent_id)
@@ -523,6 +496,18 @@ def upload_file(request):
 
 		serializer = FileSerializer(file_to_store)
 		return Response(serializer.data, status=status.HTTP_201_CREATED)
+		# print filename
+		# for i in range(0, 10000):
+		# 	filename = str(i)+ file_.name
+		#
+		# 	file_type = get_type_of_file(filename)
+		# 	file_to_store = File(filename, storage_manager.save_file(file_.read()),
+		# 	                     file_type, request.user.id, [parent_id]).as_dict()
+		# 	storage_manager.add_to_folder(parent_id, file_to_store)
+		#
+		# 	folder = storage_manager.search_folder_by_id(parent_id)
+		# 	serializer = FolderSerializer(folder)
+		# return Response('OK', status=status.HTTP_201_CREATED)
 
 
 @api_view(['POST'])
@@ -549,7 +534,7 @@ def delete_file(request):
 	if request.method == 'POST':
 		data = JSONParser().parse(request)
 		storage_manager.delete_file(data['file_id'], data['parent_id'])
-		cache_manager.clear_folders_cache(data['parent_id'])
+		# cache_manager.clear_folders_cache(data['parent_id'])
 
 		folder = storage_manager.search_folder_by_id(data['parent_id'])
 		serializer = FolderSerializer(folder)
@@ -568,10 +553,35 @@ def update_file(request):
 	if request.method == 'POST':
 		data = JSONParser().parse(request)
 		storage_manager.update_file(data['file_id'], data['parent_id'], data['new_filename'])
-		cache_manager.clear_folders_cache(data['parent_id'])
 
 		folder = storage_manager.search_folder_by_id(data['parent_id'])
 		serializer = FolderSerializer(folder)
 		cache_manager.cache_last_visited_folder(request.user.id, serializer.data)
 
 		return Response(1, status=status.HTTP_200_OK)
+
+
+@api_view(['GET'])
+@permission_classes((IsAuthenticated, ))
+def show_statistics(request):
+	storage_manager.user_activity(request.user.username, request.build_absolute_uri())
+	if request.method == 'GET':
+		day_activity, week_activity, month_activity = storage_manager.get_statistics()
+		cache_queries = cache_manager.get_cache_statistics()
+		data = {}
+		data['day_activity'] = day_activity
+		data['week_activity'] = week_activity
+		data['month_activity'] = month_activity
+		data['cache_queries'] = cache_queries
+		data = json.loads(json.dumps(data))
+		return Response(data, status=status.HTTP_200_OK)
+
+
+@api_view(['GET'])
+@permission_classes((IsAuthenticated,))
+def restore_db(request):
+	storage_manager.user_activity(request.user.username, request.build_absolute_uri())
+	if request.method == 'GET':
+		storage_manager.db_restore(str(date.today()))
+		cache_manager.clear_last_visited_folder(request.user.id)
+		return Response('OK', status=status.HTTP_200_OK)

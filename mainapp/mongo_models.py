@@ -2,11 +2,13 @@ from datetime import datetime
 
 
 class File(object):
-	def __init__(self, filename, id, type_, user_id):
+	def __init__(self, filename, id, type_, user_id, parent_id):
 		self.id = id
 		self.filename = filename
 		self.type = type_
 		self.user_id = user_id
+		self.parent_id = parent_id
+		self.read_permission = []
 
 	def __str__(self):
 		return self.filename
@@ -17,6 +19,8 @@ class File(object):
 		d['filename'] = self.filename
 		d['type'] = self.type
 		d['user_id'] = self.user_id
+		d['parent_id'] = self.parent_id
+		d['read_permission'] = self.read_permission
 		return d
 
 
@@ -28,8 +32,6 @@ class Folder(object):
 		self.subfolders = subfolders if subfolders is not None else []
 		self.files = files if files is not None else []
 		self.parent_id = parent_id
-		self.read_permission = []
-		self.edit_permission = []
 
 	def __str__(self):
 		return self.title
@@ -42,8 +44,6 @@ class Folder(object):
 		d['subfolders'] = self.subfolders
 		d['files'] = self.files
 		d['parent_id'] = self.parent_id
-		d['read_permission'] = self.read_permission
-		d['edit_permission'] = self.edit_permission
 		return d
 
 

@@ -1,19 +1,25 @@
 # from mongoengine import connect
 from mongo_models import Folder
-from datetime import date
+from datetime import date, datetime
 from pymongo import MongoClient
 from bson.objectid import ObjectId
 import gridfs
+import os
+import shutil
+import subprocess
+import moment
 
 
 class StorageManager(object):
 
 	def __init__(self):
-		self.db = MongoClient().delink_storage
+		self.db = MongoClient(host='localhost:27100').delink_storage
 		self.fs = gridfs.GridFS(self.db)
+		# self.db_restore('2016-12-25')
+		self.handle_dump_creation()
 
 	def user_activity(self, username, url):
-		self.db.search_statistics.insert_one({'user': username, 'date': str(date.today()), 'url': url})
+		self.db.search_statistics.insert_one({'user': username, 'date': datetime.utcnow(), 'url': url})
 
 	def cache_activity(self, username, url):
 		self.db.search_statistics.insert_one({'user': username, 'date': str(date.today()), 'url': url})
@@ -153,33 +159,46 @@ class StorageManager(object):
 			self.db.codes.delete_one(reset_code_obj)
 
 	def give_folder_read_perm(self, folder_id, user_id):
+		# folder = self.db.folder.find_one({'_id': ObjectId(folder_id)})
 		self.db.folder.update_one({'_id': ObjectId(folder_id)},
 		                          {'$addToSet': {'read_permission': user_id}})
-
-	def give_file_read_perm(self, file_id, user_id):
-		self.db.files.update_one({'_id': ObjectId(file_id)},
-		                          {'$addToSet': {'read_permission': user_id}})
-
-	def give_folder_edit_perm(self, folder_id, user_id):
-		self.db.folder.update_one({'_id': ObjectId(folder_id)},
-		                          {'$addToSet': {'edit_permission': user_id}})
-
-	def give_file_edit_perm(self, file_id, user_id):
-		self.db.files.update_one({'_id': ObjectId(file_id)},
-		                         {'$addToSet': {'edit_permission': user_id}})
+		folder = self.db.folder.find_one({'_id': ObjectId(folder_id)})
+		if self.is_home_folder(folder['parent_id']):
+			self.db.mainfolder.update({'_id': ObjectId(folder['parent_id']), 'subfolders._id': ObjectId(folder_id)},
+			                          {'$addToSet': {'subfolders.$.read_permission': user_id}})
 
 	def deny_folder_read_perm(self, folder_id, user_id):
+		folder = self.db.folder.find_one({'_id': ObjectId(folder_id)})
+		if self.is_home_folder(folder['parent_id']):
+			self.db.mainfolder.update({'_id': ObjectId(folder['parent_id']), 'subfolders._id': ObjectId(folder_id)},
+			                          {'$pull': {'subfolders.$.read_permission': user_id}})
 		self.db.folder.update_one({'_id': ObjectId(folder_id)},
 		                          {'$pull': {'read_permission': user_id}})
 
-	def deny_file_read_perm(self, file_id, user_id):
-		self.db.files.update_one({'_id': ObjectId(file_id)},
-		                         {'$pull': {'read_permission': user_id}})
+	def handle_dump_creation(self):
+		date_ = self.db.dumps.find_one({'date': str(date.today())})
+		if not date_:
+			self.db_dump()
 
-	def deny_folder_edit_perm(self, folder_id, user_id):
-		self.db.folder.update_one({'_id': ObjectId(folder_id)},
-		                          {'$pull': {'edit_permission': user_id}})
+	def db_dump(self):
+		self.db.dumps.insert_one({'date': str(date.today())})
+		cmd = "mongodump --host localhost --port 27100 --db delink_storage --out dump/" + str(date.today())
+		print (subprocess.check_output(cmd, stderr=subprocess.STDOUT, shell=True))
 
-	def deny_file_edit_perm(self, file_id, user_id):
-		self.db.files.update_one({'_id': ObjectId(file_id)},
-		                         {'$pull': {'edit_permission': user_id}})
+	def db_restore(self, date):
+		# self.r.flushdb()
+		cmd = "mongorestore --host localhost --port 27100 --db delink_storage --drop dump/" + date + "/delink_storage"
+		print (subprocess.check_output(cmd, stderr=subprocess.STDOUT, shell=True))
+
+	def get_statistics(self):
+		today = str(date.today())
+		year = int(today[:4])
+		month = int(today[5:7])
+		day = int(today[8:])
+		day_ago = moment.date(year, month, day).subtract(day=1).datetime
+		day_activity = self.db.search_statistics.find({'date': {'$gt': day_ago}})
+		week_ago = moment.date(year, month, day).subtract(weeks=1).datetime
+		week_activity = self.db.search_statistics.find({'date': {'$gt': week_ago}})
+		month_age = moment.date(year, month, day).subtract(month=1).datetime
+		month_activity = self.db.search_statistics.find({'date': {'$gt': month_age}})
+		return day_activity.count(), week_activity.count(), month_activity.count()
